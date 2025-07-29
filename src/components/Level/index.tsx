@@ -1,12 +1,17 @@
-import { Pressable, type PressableProps, Text } from 'react-native';
+import { useEffect } from 'react';
+import { Pressable, type PressableProps } from 'react-native';
 import Animated, {
+  interpolateColor,
   useAnimatedStyle,
   useSharedValue,
-  withSpring,
+  withTiming,
 } from 'react-native-reanimated';
 
 import { THEME } from '../../styles/theme';
 import { styles } from './styles';
+
+// Criando um componente animado
+const PressableAnimated = Animated.createAnimatedComponent(Pressable);
 
 const TYPE_COLORS = {
   EASY: THEME.COLORS.BRAND_LIGHT,
@@ -26,7 +31,8 @@ export function Level({
   isChecked = false,
   ...rest
 }: Props) {
-  const scale = useSharedValue(0);
+  const scale = useSharedValue(1);
+  const checked = useSharedValue(1);
 
   const COLOR = TYPE_COLORS[type];
 
@@ -36,38 +42,58 @@ export function Level({
         // Dentro do value é onde temos o conteúdo do useSharedValue, ou seja, o valor 1
         { scale: scale.value },
       ],
+      // Para o interpolateColor funcionar, temos que passar o value do checked,
+      // que vai ser 0 ou 1. O segundo parâmetro é o array com os valores possíveis.
+      // O terceiro parâmetro também é um array com as cores que queremos definir para
+      // cada valor, ou seja, se o value for 0, a cor vai ser a primeira, se for 1,
+      // a cor vai ser a segunda.
+      backgroundColor: interpolateColor(
+        checked.value,
+        [0, 1],
+        ['transparent', COLOR]
+      ),
+    };
+  });
+
+  const animatedTextStyle = useAnimatedStyle(() => {
+    return {
+      color: interpolateColor(
+        checked.value,
+        [0, 1],
+        [COLOR, THEME.COLORS.GREY_100]
+      ),
     };
   });
 
   function onPressIn() {
-    scale.value = withSpring(1.1);
+    scale.value = withTiming(1.1);
   }
 
   function onPressOut() {
-    scale.value = withSpring(1);
+    scale.value = withTiming(1);
   }
 
+  // Quando o isChecked for true, o value vai ser 1, se for false, o value vai ser 0
+  useEffect(() => {
+    checked.value = withTiming(isChecked ? 1 : 0);
+  }, [isChecked]);
+
   return (
-    <Pressable onPressIn={onPressIn} onPressOut={onPressOut} {...rest}>
-      <Animated.View
-        style={[
-          styles.container,
-          animatedContainerStyle,
-          {
-            borderColor: COLOR,
-            backgroundColor: isChecked ? COLOR : 'transparent',
-          },
-        ]}
-      >
-        <Text
-          style={[
-            styles.title,
-            { color: isChecked ? THEME.COLORS.GREY_100 : COLOR },
-          ]}
-        >
-          {title}
-        </Text>
-      </Animated.View>
-    </Pressable>
+    <PressableAnimated
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
+      style={[
+        styles.container,
+        {
+          borderColor: COLOR,
+        },
+        animatedContainerStyle,
+      ]}
+      {...rest}
+    >
+      <Animated.Text style={[styles.title, animatedTextStyle]}>
+        {title}
+      </Animated.Text>
+    </PressableAnimated>
   );
 }
