@@ -82,7 +82,10 @@ export function History() {
               overshootLeft={false} // se tentarmos afastar muito para a esquerda, ele não vai afastar
               containerStyle={styles.swipeableContainer} // para estilizar o Swipeable
               renderLeftActions={() => (
-                <Pressable style={styles.swipeableRemove}>
+                <Pressable
+                  style={styles.swipeableRemove}
+                  onPress={() => handleRemove(item.id)}
+                >
                   <Trash size={32} color={THEME.COLORS.GREY_100} />
                 </Pressable>
               )}
