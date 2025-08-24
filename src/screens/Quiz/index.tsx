@@ -1,15 +1,19 @@
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
 import { Alert, Text, View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   Easing,
+  Extrapolate,
   interpolate,
   useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
   withSequence,
+  withSpring,
   withTiming,
 } from 'react-native-reanimated';
+
 import { ConfirmButton } from '../../components/ConfirmButton';
 import { Loading } from '../../components/Loading';
 import { OutlineButton } from '../../components/OutlineButton';
@@ -27,6 +31,8 @@ interface Params {
 
 type QuizProps = (typeof QUIZ)[0];
 
+const CARD_INCLINATION = 10; // inclinação do card
+
 export function Quiz() {
   const [points, setPoints] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -38,6 +44,7 @@ export function Quiz() {
 
   const shake = useSharedValue(0);
   const scrollY = useSharedValue(0);
+  const cardPosition = useSharedValue(0);
 
   const { navigate } = useNavigation();
 
@@ -136,10 +143,54 @@ export function Quiz() {
   const fixedProgressBarStyles = useAnimatedStyle(() => {
     return {
       position: 'absolute',
+      zIndex: 1, // Damos prioridade ao progress bar
       paddingTop: 50,
       backgroundColor: THEME.COLORS.GREY_500,
       width: '110%',
       left: '-5%', // Vamos ter 5% de cada lado sobrando
+      // Quando estiver em 50 a opacidade vai ser 0, quando estiver em 90 vai ser 1
+      opacity: interpolate(scrollY.value, [50, 90], [0, 1], Extrapolate.CLAMP),
+      transform: [
+        {
+          translateY: interpolate(
+            scrollY.value,
+            [50, 100],
+            [-40, 0],
+            Extrapolate.CLAMP
+          ),
+        },
+      ],
+    };
+  });
+
+  const headerStyles = useAnimatedStyle(() => {
+    return {
+      opacity: interpolate(scrollY.value, [70, 90], [1, 0], Extrapolate.CLAMP),
+    };
+  });
+
+  // Fica obersevando
+  const onPan = Gesture.Pan()
+    .onUpdate((event) => {
+      const moveToLeft = event.translationX < 0; //Significa que está movendo o card para a esquerda
+
+      if (moveToLeft) {
+        cardPosition.value = event.translationX;
+      }
+
+      cardPosition.value = event.translationX;
+    })
+    .onEnd(() => {
+      cardPosition.value = withTiming(0);
+    });
+
+  const dragStyles = useAnimatedStyle(() => {
+    const rotateZ = cardPosition.value / CARD_INCLINATION;
+    return {
+      translate: [
+        { translateX: cardPosition.value },
+        { rotateZ: `${rotateZ}deg` },
+      ],
     };
   });
 
@@ -176,20 +227,24 @@ export function Quiz() {
         onScroll={scrollHandler}
         scrollEventThrottle={16}
       >
-        <QuizHeader
-          title={quiz.title}
-          currentQuestion={currentQuestion + 1}
-          totalOfQuestions={quiz.questions.length}
-        />
-
-        <Animated.View style={shakeStyleAnimated}>
-          <Question
-            key={quiz.questions[currentQuestion].title}
-            question={quiz.questions[currentQuestion]}
-            alternativeSelected={alternativeSelected}
-            setAlternativeSelected={setAlternativeSelected}
+        <Animated.View style={[styles.header, headerStyles]}>
+          <QuizHeader
+            title={quiz.title}
+            currentQuestion={currentQuestion + 1}
+            totalOfQuestions={quiz.questions.length}
           />
         </Animated.View>
+
+        <GestureDetector gesture={onPan}>
+          <Animated.View style={[shakeStyleAnimated, dragStyles]}>
+            <Question
+              key={quiz.questions[currentQuestion].title}
+              question={quiz.questions[currentQuestion]}
+              alternativeSelected={alternativeSelected}
+              setAlternativeSelected={setAlternativeSelected}
+            />
+          </Animated.View>
+        </GestureDetector>
 
         <View style={styles.footer}>
           <OutlineButton title='Parar' onPress={handleStop} />
