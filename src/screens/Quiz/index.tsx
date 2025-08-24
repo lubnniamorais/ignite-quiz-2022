@@ -6,11 +6,11 @@ import Animated, {
   Easing,
   Extrapolate,
   interpolate,
+  runOnJS,
   useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
   withSequence,
-  withSpring,
   withTiming,
 } from 'react-native-reanimated';
 
@@ -32,6 +32,7 @@ interface Params {
 type QuizProps = (typeof QUIZ)[0];
 
 const CARD_INCLINATION = 10; // inclinação do card
+const CARD_SKIP_AREA = -200;
 
 export function Quiz() {
   const [points, setPoints] = useState(0);
@@ -171,6 +172,8 @@ export function Quiz() {
 
   // Fica obersevando
   const onPan = Gesture.Pan()
+    .activateAfterLongPress(200)
+    // Interagindo com o componente
     .onUpdate((event) => {
       const moveToLeft = event.translationX < 0; //Significa que está movendo o card para a esquerda
 
@@ -180,12 +183,17 @@ export function Quiz() {
 
       cardPosition.value = event.translationX;
     })
-    .onEnd(() => {
+    // Terminando a interação com o componente
+    .onEnd((event) => {
+      if (event.translationX < CARD_SKIP_AREA) {
+        runOnJS(handleSkipConfirm)();
+      }
       cardPosition.value = withTiming(0);
     });
 
   const dragStyles = useAnimatedStyle(() => {
     const rotateZ = cardPosition.value / CARD_INCLINATION;
+
     return {
       translate: [
         { translateX: cardPosition.value },
