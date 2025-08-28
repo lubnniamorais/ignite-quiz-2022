@@ -17,6 +17,7 @@ import Animated, {
 import { ConfirmButton } from '../../components/ConfirmButton';
 import { Loading } from '../../components/Loading';
 import { OutlineButton } from '../../components/OutlineButton';
+import { OverlayFeedback } from '../../components/OverlayFeedback';
 import { ProgressBar } from '../../components/ProgressBar';
 import { Question } from '../../components/Question';
 import { QuizHeader } from '../../components/QuizHeader';
@@ -42,6 +43,8 @@ export function Quiz() {
   const [alternativeSelected, setAlternativeSelected] = useState<null | number>(
     null
   );
+
+  const [statusReply, setStatusReply] = useState(0);
 
   const shake = useSharedValue(0);
   const scrollY = useSharedValue(0);
@@ -90,8 +93,10 @@ export function Quiz() {
     // Aqui verificamos se a alternativa selecionada é igual a alternativa correta
     // Se for, então a pontuação do usuário será atualizada
     if (quiz.questions[currentQuestion].correct === alternativeSelected) {
+      setStatusReply(1);
       setPoints((prevState) => prevState + 1);
     } else {
+      setStatusReply(2);
       shakeAnimation();
     }
 
@@ -220,6 +225,7 @@ export function Quiz() {
 
   return (
     <View style={styles.container}>
+      <OverlayFeedback status={statusReply} />
       <Animated.View style={fixedProgressBarStyles}>
         <Text style={styles.title}>{quiz.title}</Text>
 
