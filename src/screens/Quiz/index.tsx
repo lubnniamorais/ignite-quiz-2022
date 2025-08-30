@@ -13,7 +13,6 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-
 import { ConfirmButton } from '../../components/ConfirmButton';
 import { Loading } from '../../components/Loading';
 import { OutlineButton } from '../../components/OutlineButton';
@@ -32,7 +31,7 @@ interface Params {
 
 type QuizProps = (typeof QUIZ)[0];
 
-const CARD_INCLINATION = 10; // inclinação do card
+const CARD_INCLINATION = 10;
 const CARD_SKIP_AREA = -200;
 
 export function Quiz() {
@@ -90,11 +89,10 @@ export function Quiz() {
       return handleSkipConfirm();
     }
 
-    // Aqui verificamos se a alternativa selecionada é igual a alternativa correta
-    // Se for, então a pontuação do usuário será atualizada
     if (quiz.questions[currentQuestion].correct === alternativeSelected) {
       setStatusReply(1);
       setPoints((prevState) => prevState + 1);
+      handleNextQuestion();
     } else {
       setStatusReply(2);
       shakeAnimation();
@@ -122,7 +120,12 @@ export function Quiz() {
   function shakeAnimation() {
     shake.value = withSequence(
       withTiming(3, { duration: 400, easing: Easing.bounce }),
-      withTiming(0)
+      withTiming(0, undefined, (finished) => {
+        'worklet';
+        if (finished) {
+          runOnJS(handleNextQuestion)();
+        }
+      })
     );
   }
 
@@ -132,7 +135,7 @@ export function Quiz() {
         {
           translateX: interpolate(
             shake.value,
-            [0, 0.5, 1, 1.5, 2, 2.5, 3],
+            [0, 0.5, 1, 1.5, 2, 2.5, 0],
             [0, -15, 0, 15, 0, -15, 0]
           ),
         },
@@ -142,20 +145,19 @@ export function Quiz() {
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
-      scrollY.value = event.contentOffset.y; // Pega o valor da posição do scroll na vertical
+      scrollY.value = event.contentOffset.y;
     },
   });
 
   const fixedProgressBarStyles = useAnimatedStyle(() => {
     return {
       position: 'absolute',
-      zIndex: 1, // Damos prioridade ao progress bar
       paddingTop: 50,
+      zIndex: 1,
       backgroundColor: THEME.COLORS.GREY_500,
       width: '110%',
-      left: '-5%', // Vamos ter 5% de cada lado sobrando
-      // Quando estiver em 50 a opacidade vai ser 0, quando estiver em 90 vai ser 1
-      opacity: interpolate(scrollY.value, [50, 90], [0, 1], Extrapolate.CLAMP),
+      left: '-5%',
+      opacity: interpolate(scrollY.value, [50, 90], [0, 10], Extrapolate.CLAMP),
       transform: [
         {
           translateY: interpolate(
@@ -171,36 +173,31 @@ export function Quiz() {
 
   const headerStyles = useAnimatedStyle(() => {
     return {
-      opacity: interpolate(scrollY.value, [70, 90], [1, 0], Extrapolate.CLAMP),
+      opacity: interpolate(scrollY.value, [60, 90], [1, 0], Extrapolate.CLAMP),
     };
   });
 
-  // Fica obersevando
   const onPan = Gesture.Pan()
     .activateAfterLongPress(200)
-    // Interagindo com o componente
     .onUpdate((event) => {
-      const moveToLeft = event.translationX < 0; //Significa que está movendo o card para a esquerda
+      const moveToLeft = event.translationX < 0;
 
       if (moveToLeft) {
         cardPosition.value = event.translationX;
       }
-
-      cardPosition.value = event.translationX;
     })
-    // Terminando a interação com o componente
     .onEnd((event) => {
       if (event.translationX < CARD_SKIP_AREA) {
         runOnJS(handleSkipConfirm)();
       }
+
       cardPosition.value = withTiming(0);
     });
 
   const dragStyles = useAnimatedStyle(() => {
     const rotateZ = cardPosition.value / CARD_INCLINATION;
-
     return {
-      translate: [
+      transform: [
         { translateX: cardPosition.value },
         { rotateZ: `${rotateZ}deg` },
       ],
@@ -213,12 +210,6 @@ export function Quiz() {
     setIsLoading(false);
   }, []);
 
-  useEffect(() => {
-    if (quiz.questions) {
-      handleNextQuestion();
-    }
-  }, [points]);
-
   if (isLoading) {
     return <Loading />;
   }
@@ -226,9 +217,9 @@ export function Quiz() {
   return (
     <View style={styles.container}>
       <OverlayFeedback status={statusReply} />
+
       <Animated.View style={fixedProgressBarStyles}>
         <Text style={styles.title}>{quiz.title}</Text>
-
         <ProgressBar
           total={quiz.questions.length}
           current={currentQuestion + 1}
@@ -256,6 +247,7 @@ export function Quiz() {
               question={quiz.questions[currentQuestion]}
               alternativeSelected={alternativeSelected}
               setAlternativeSelected={setAlternativeSelected}
+              onUnmount={() => setStatusReply(0)}
             />
           </Animated.View>
         </GestureDetector>

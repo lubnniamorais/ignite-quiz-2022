@@ -1,5 +1,5 @@
 import { Dimensions, Text } from 'react-native';
-import Animated, { Keyframe } from 'react-native-reanimated';
+import Animated, { Keyframe, runOnJS } from 'react-native-reanimated';
 
 import { Option } from '../Option';
 import { styles } from './styles';
@@ -13,6 +13,7 @@ type Props = {
   question: QuestionProps;
   alternativeSelected?: number | null;
   setAlternativeSelected?: (value: number) => void;
+  onUnmount: () => void;
 };
 
 // Pegamos a largura da tela
@@ -22,6 +23,7 @@ export function Question({
   question,
   alternativeSelected,
   setAlternativeSelected,
+  onUnmount,
 }: Props) {
   // No Keyframe definimos o que vai acontecer no inicio, no meio e no fim da animação,
   // ou seja, a primeira animação vai ser de 0% para 70% e a segunda de 70% para 100%
@@ -55,7 +57,12 @@ export function Question({
     <Animated.View
       style={styles.container}
       entering={enteringKeyframe.duration(400)}
-      exiting={exitingKeyframe.duration(400)}
+      exiting={exitingKeyframe.duration(400).withCallback((finished) => {
+        'worklet';
+        if (finished) {
+          runOnJS(onUnmount)();
+        }
+      })}
     >
       <Text style={styles.title}>{question.title}</Text>
 
