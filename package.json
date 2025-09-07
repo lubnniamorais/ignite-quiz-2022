@@ -28,7 +28,8 @@
     "react-native-svg": "15.11.2",
     "react-native-web": "^0.20.0",
     "expo-audio": "~0.4.9",
-    "expo-video": "~2.2.2"
+    "expo-video": "~2.2.2",
+    "expo-haptics": "~14.1.4"
   },
   "devDependencies": {
     "@babel/core": "^7.12.9",
